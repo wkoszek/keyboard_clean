@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""Block all keyboard input for a while so you can wipe the keys.
+
+Usage: clean_keyboard [SECONDS]   (default 60)
+
+Mouse and trackpad stay active. The power button and Touch ID
+cannot be blocked, so avoid pressing those.
+"""
+import sys
+import Quartz
+
+DEFAULT_DURATION = 60
+
+# Media and brightness keys arrive as NSSystemDefined events (type 14),
+# not as key down/up, so they need their own mask bit.
+NX_SYSDEFINED = 14
+
+tap = None
+
+
+def event_callback(proxy, event_type, event, refcon):
+    # macOS disables a tap it thinks is slow, or on certain user input.
+    # Turn it straight back on, or the keyboard unlocks mid-clean.
+    if event_type in (Quartz.kCGEventTapDisabledByTimeout,
+                      Quartz.kCGEventTapDisabledByUserInput):
+        Quartz.CGEventTapEnable(tap, True)
+        return event
+    # Returning None drops the event before any app sees it.
+    return None
+
+
+def main():
+    global tap
+
+    duration = DEFAULT_DURATION
+    if len(sys.argv) > 1:
+        try:
+            duration = int(sys.argv[1])
+        except ValueError:
+            sys.exit(f"usage: {sys.argv[0]} [SECONDS]")
+        if duration <= 0:
+            sys.exit("SECONDS must be positive")
+
+    mask = (
+        Quartz.CGEventMaskBit(Quartz.kCGEventKeyDown) |
+        Quartz.CGEventMaskBit(Quartz.kCGEventKeyUp) |
+        Quartz.CGEventMaskBit(Quartz.kCGEventFlagsChanged) |
+        Quartz.CGEventMaskBit(NX_SYSDEFINED)
+    )
+
+    tap = Quartz.CGEventTapCreate(
+        Quartz.kCGSessionEventTap,
+        Quartz.kCGHeadInsertEventTap,
+        Quartz.kCGEventTapOptionDefault,
+        mask,
+        event_callback,
+        None,
+    )
+    if not tap:
+        sys.exit("Permission denied. Allow your terminal app in System Settings > "
+                 "Privacy & Security > Accessibility, then restart the terminal.")
+
+    source = Quartz.CFMachPortCreateRunLoopSource(None, tap, 0)
+    Quartz.CFRunLoopAddSource(Quartz.CFRunLoopGetCurrent(), source,
+                              Quartz.kCFRunLoopCommonModes)
+    Quartz.CGEventTapEnable(tap, True)
+
+    print(f"Keyboard locked for {duration} seconds. Mouse and trackpad still work.")
+    try:
+        for left in range(duration, 0, -1):
+            print(f"\r  {left:3d}s left ", end="", flush=True)
+            Quartz.CFRunLoopRunInMode(Quartz.kCFRunLoopDefaultMode, 1.0, False)
+    finally:
+        Quartz.CGEventTapEnable(tap, False)
+    print("\rKeyboard unlocked.    ")
+
+
+if __name__ == "__main__":
+    main()
