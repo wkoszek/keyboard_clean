@@ -6,8 +6,13 @@ The mouse and trackpad keep working.
 ## Setup
 
 ```sh
-pip3 install pyobjc-framework-Quartz
+make install
 ```
+
+This fetches the one Python package the script needs and links
+`clean_keyboard` into `~/.local/bin`. 📦 If you don't have
+[uv](https://docs.astral.sh/uv/), it installs uv with Homebrew first.
+Make sure `~/.local/bin` is on your `PATH`.
 
 Then give your terminal app Accessibility access in System Settings >
 Privacy & Security > Accessibility. Quit and reopen the terminal.
@@ -15,8 +20,8 @@ Privacy & Security > Accessibility. Quit and reopen the terminal.
 ## Use
 
 ```sh
-./clean_keyboard       # lock for 60 seconds
-./clean_keyboard 30    # lock for 30 seconds
+clean_keyboard       # lock for 60 seconds
+clean_keyboard 30    # lock for 30 seconds
 ```
 
 It blocks typing plus the volume and brightness keys. A countdown shows
